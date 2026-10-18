@@ -1,0 +1,34 @@
+{
+  "name": "bankx-contract",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "compile": "hardhat compile",
+    "test": "hardhat test",
+    "deploy:local": "hardhat run scripts/deploy.js --network hardhatMainnet",
+    "deploy:sepolia": "hardhat run scripts/deploy.js --network sepolia",
+    "node:local": "hardhat node --network hardhatMainnet",
+    "deploy:protocol:local": "hardhat run scripts/deployProtocol.js --network localhost",
+    "deploy:protocol:sepolia": "hardhat run scripts/deployProtocol.js --network sepolia",
+    "deploy:usdc-vault:local": "hardhat run scripts/deployUsdcVault.js --network localhost",
+    "deploy:usdc-vault:sepolia": "hardhat run scripts/deployUsdcVault.js --network sepolia"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@openzeppelin/contracts": "^5.6.1"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-ethers": "^4.0.15",
+    "@nomicfoundation/hardhat-toolbox-mocha-ethers": "^3.0.7",
+    "@nomicfoundation/hardhat-toolbox": "^7.0.0",
+    "@types/node": "^22.20.1",
+    "dotenv": "^17.4.2",
+    "ethers": "^6.17.0",
+    "hardhat": "^3.13.0",
+    "typescript": "~6.0.3"
+  },
+  "type": "module"
+}

@@ -1,0 +1,54 @@
+{
+  "31337": {
+    "chainId": "31337",
+    "chainName": "Hardhat Local",
+    "deploymentBlock": 48,
+    "deployedAt": "2026-10-17T19:11:52.410Z",
+    "treasury": "0xf39Fd6e51aad88F6F4ce6aB8827279cffFb92266",
+    "BankXToken": "0x09635F643e140090A9A8Dcd712eD6285858ceBef",
+    "BankXSavingsVault": "0x67d269191c92Caf3cD7723F116c85e6E9bf55933",
+    "BankXAMM": "0xE6E340D132b5f46d1e472DebcD681B2aBc16e57E",
+    "BankXStaking": "0xc3e53F4d16Ae77Db1c982e75a937B9f60FE63690",
+    "BankXLoanManager": "0xc5a5C42992dECbae36851359345FE25997F5C42d",
+    "BankXGovernance": "0x9E545E3C0baAB3E08CdfD552C960A1050f373042",
+    "BankXPriceFeed": "0x84eA74d481Ee0A5332c457a4d796187F6Ba67fEB",
+    "usdc": "0xa85233C63b9Ee964Add6F2cffe00Fd84eb32338f",
+    "usdcDecimals": 6,
+    "ethUsdFeed": "0x7a2088a1bFc9d81c55368AE168C2C02570cB814F",
+    "maxStalenessSeconds": "3600",
+    "legacyBankX": null,
+    "tokenTotal": "1000000000000000000000000",
+    "tokenAllocations": {
+      "treasury": "900000000000000000000000",
+      "staking": "90000000000000000000000",
+      "amm": "10000000000000000000000"
+    }
+  },
+  "11155111": {
+    "chainId": "11155111",
+    "chainName": "Sepolia",
+    "deploymentBlock": 11935883,
+    "deployedAt": "2026-10-17T19:08:48.000Z",
+    "treasury": "0x872Cd8314B7664402b46DeD6728bef3BA21e575e",
+    "BankXToken": "0x49a6181d73fe909ac550580e3c878e8dbda6448f",
+    "BankXLoanManager": "0x1f2284e2650a5859da32e02b3c5f13f2992067e8",
+    "BankXSavingsVault": "0x823a8ee5605547d924cccfac2832eef55254f2f1",
+    "BankXAMM": "0x5df9a40e407d27c1b531f8678ae04508c4b54b80",
+    "BankXStaking": "0xa42df6448e131f6fdfb1c6dbfcf390a8d4a754b0",
+    "BankXPriceFeed": "0x31a6bee6d23acc09c24adbee63536024e896c4fd",
+    "BankXGovernance": "0x7b5d20c311f8f7dc475c6a0b2fd8d0737f4b615b",
+    "usdc": "0x1c7D4B196Cb0C7B01d743Fbc6116a902379C7238",
+    "usdcDecimals": 6,
+    "ethUsdFeed": "0x694AA1769357215DE4FAC081bf1f309aDC325306",
+    "maxStalenessSeconds": "3600",
+    "legacyBankX": "0x8D470573BaFc992F060E3438bedf133a22F1a140",
+    "tokenTotal": "1000000000000000000000000",
+    "tokenAllocations": {
+      "treasury": "900000000000000000000000",
+      "staking": "90000000000000000000000",
+      "amm": "10000000000000000000000"
+    },
+    "BankXUsdcVault": "0xcb9A44985c1b35469Aac8A5DF3822dE10add246b",
+    "usdcVaultDeployedAt": "2026-10-18T18:53:13.433Z"
+  }
+}

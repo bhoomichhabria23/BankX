@@ -1,0 +1,35 @@
+.env
+.env.*
+
+# Frontend: BankX React/Vite app
+bankx/**/node_modules/
+bankx/**/dist/
+bankx/**/dist-ssr/
+bankx/**/logs/
+bankx/**/*.log
+bankx/**/npm-debug.log*
+bankx/**/yarn-debug.log*
+bankx/**/yarn-error.log*
+bankx/**/pnpm-debug.log*
+bankx/**/lerna-debug.log*
+bankx/**/*.local
+bankx/.vscode/*
+!bankx/.vscode/extensions.json
+bankx/**/.idea/
+bankx/**/.DS_Store
+bankx/**/*.suo
+bankx/**/*.ntvs*
+bankx/**/*.njsproj
+bankx/**/*.sln
+bankx/**/*.sw?
+
+# Solidity contracts: Hardhat project
+bankx-contract/node_modules/
+bankx-contract/dist/
+bankx-contract/bundle/
+bankx-contract/artifacts/
+bankx-contract/cache/
+bankx-contract/types/
+bankx-contract/coverage/
+bankx-contract/.gas-snapshot
+bankx-contract/snapshots/
