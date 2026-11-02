@@ -27,6 +27,9 @@ Create a workspace-root `.env` (next to this README) for local use. Vite and Har
 | Variable | Used for |
 | --- | --- |
 | `VITE_WALLETCONNECT_PROJECT_ID` | Optional WalletConnect support in the frontend. |
+| `VITE_SEPOLIA_RPC_URL` | Public read-only Ethereum Sepolia RPC URL used by the Chainlink BTC/USD page. |
+| `VITE_CHAINLINK_BTC_USD_FEED_ADDRESS` | Optional override for the BTC/USD Chainlink feed address; defaults to the official Sepolia feed. |
+| `VITE_CHAINLINK_MAX_AGE_SECONDS` | Optional maximum age for a valid BTC/USD update; defaults to `3600`. |
 | `VITE_BANKX_ADDRESS` or `VITE_LEGACY_BANKX_ADDRESS` | Optional legacy ETH pool address override. |
 | `SEPOLIA_RPC_URL`, `PRIVATE_KEY` | Sepolia contract deployments; use a disposable, testnet-funded wallet. |
 | `BANKX_TREASURY_ADDRESS`, `BANKX_TREASURY_ALLOCATION`, `BANKX_STAKING_ALLOCATION`, `BANKX_AMM_ALLOCATION` | Optional protocol deployment settings. |
@@ -35,6 +38,8 @@ Create a workspace-root `.env` (next to this README) for local use. Vite and Har
 | `LEGACY_BANKX_ADDRESS` | Optional legacy contract address recorded during protocol deployment. |
 
 Only `VITE_` variables are exposed to frontend code. Never put private keys or other secrets in variables prefixed with `VITE_`. Do not use a mainnet private key.
+
+The Chainlink Price Feed page reads the BTC/USD feed directly through a public Sepolia RPC and does not require a connected wallet. The frontend RPC variable must contain a public read-only endpoint; do not reuse an endpoint containing a private API token. The optional feed address can be used to configure another compatible Sepolia feed.
 
 ## Run the frontend
 
@@ -50,6 +55,8 @@ npm run build
 npm run lint
 ```
 
+Open `/chainlink-price-feed` to view and refresh the live Chainlink BTC/USD price.
+
 Connect an injected wallet or WalletConnect wallet on a supported network. The app reads protocol contract addresses from `bankx/src/config/deployments.json`.
 
 ## Contracts, tests, and deployments
@@ -60,6 +67,8 @@ Hardhat is required for compiling, testing, and deploying the Solidity contracts
 npm test
 npm run compile
 ```
+
+The standalone SafePriceConsumer checks the feed answer and update time, enforces its configured maximum age, scales the price using `decimals()`, and exposes `valueOf(uint256 amount)`.
 
 The Hardhat local network uses chain ID `31337`; Sepolia uses chain ID `11155111`. Start a local node and deploy the local protocol in separate terminals:
 

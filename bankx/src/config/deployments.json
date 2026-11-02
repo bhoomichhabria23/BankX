@@ -28,6 +28,7 @@
     "chainId": "11155111",
     "chainName": "Sepolia",
     "deploymentBlock": 11935883,
+    "transactionIndexerUrl": "https://eth-sepolia.blockscout.com/api/v2",
     "deployedAt": "2026-10-17T19:08:48.000Z",
     "treasury": "0x872Cd8314B7664402b46DeD6728bef3BA21e575e",
     "BankXToken": "0x49a6181d73fe909ac550580e3c878e8dbda6448f",

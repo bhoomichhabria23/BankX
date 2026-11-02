@@ -15,7 +15,79 @@ import { useEffect, useState } from "react";
 import { ethers } from "ethers";
 
 import Sidebar from "../components/Sidebar";
-import { getLegacyBankXAddress, getDeployment } from "../config/contract";
+import { BANKX_ABI, getDeployment } from "../config/contract";
+
+const protocolAddressFields = [
+  "legacyBankX",
+  "BankXToken",
+  "BankXSavingsVault",
+  "BankXAMM",
+  "BankXStaking",
+  "BankXLoanManager",
+  "BankXGovernance",
+  "BankXPriceFeed",
+  "BankXUsdcVault",
+  "usdc",
+];
+
+const bankXInterface = new ethers.Interface(BANKX_ABI);
+
+function getAddress(value) {
+  return typeof value === "string"
+    ? value.toLowerCase()
+    : value?.hash?.toLowerCase() || "";
+}
+
+async function fetchAllIndexerPages(indexerUrl, walletAddress, resource) {
+  const firstPageUrl =
+    `${indexerUrl}/addresses/${encodeURIComponent(walletAddress)}/${resource}`;
+  let pageUrl = firstPageUrl;
+  const visitedPages = new Set();
+  const items = [];
+
+  while (pageUrl && !visitedPages.has(pageUrl)) {
+    visitedPages.add(pageUrl);
+    const response = await fetch(pageUrl);
+
+    if (!response.ok) {
+      throw new Error(
+        `The transaction indexer returned HTTP ${response.status} while loading ${resource}.`
+      );
+    }
+
+    const page = await response.json();
+
+    if (!Array.isArray(page.items)) {
+      throw new Error(`The transaction indexer returned invalid ${resource} data.`);
+    }
+
+    items.push(...page.items);
+
+    if (!page.next_page_params) {
+      pageUrl = "";
+      continue;
+    }
+
+    const nextPage = new URL(firstPageUrl);
+    Object.entries(page.next_page_params).forEach(([key, value]) => {
+      if (value !== null && value !== undefined) {
+        nextPage.searchParams.set(key, String(value));
+      }
+    });
+    pageUrl = nextPage.toString();
+  }
+
+  if (pageUrl) {
+    throw new Error(`The transaction indexer returned a repeated ${resource} page.`);
+  }
+
+  return items;
+}
+
+function formatTokenAmount(value, decimals) {
+  const formatted = ethers.formatUnits(BigInt(value), decimals);
+  return formatted.replace(/(\.\d*?[1-9])0+$|\.0+$/, "$1");
+}
 
 export default function Transactions() {
   const [wallet, setWallet] = useState("");
@@ -23,6 +95,7 @@ export default function Transactions() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(false);
   const [network, setNetwork] = useState("");
+  const [explorerUrl, setExplorerUrl] = useState("");
   const [error, setError] = useState("");
 
   /* =====================================================
@@ -65,235 +138,167 @@ export default function Transactions() {
       }
 
       const deployment = getDeployment(networkInfo.chainId);
-      const contractAddress = getLegacyBankXAddress(networkInfo.chainId);
-      if (!deployment || !contractAddress || !ethers.isAddress(contractAddress)) {
+      if (!deployment) {
         setError(`BankX is not configured for chain ${networkInfo.chainId.toString()}.`);
         return;
       }
       setNetwork(deployment.chainName || `Chain ${networkInfo.chainId.toString()}`);
-
-      /* =================================================
-         WALLET
-      ================================================= */
-
-      /* =================================================
-         CHECK CONTRACT
-      ================================================= */
-
-      const code =
-        await provider.getCode(
-          contractAddress
-        );
-
-      if (code === "0x") {
+      const indexerUrl = deployment.transactionIndexerUrl?.replace(/\/+$/, "");
+      if (!indexerUrl) {
         setError(
-          "BankX contract was not found at this address on Sepolia."
+          `Full transaction history is not available for ${deployment.chainName || `chain ${networkInfo.chainId.toString()}`}.`
         );
-
         return;
       }
+      setExplorerUrl(indexerUrl.replace(/\/api\/v\d+\/?$/, ""));
 
-      /* =================================================
-         BLOCK RANGE
-      ================================================= */
+      const [indexedTransactions, indexedTokenTransfers] = await Promise.all([
+        fetchAllIndexerPages(indexerUrl, userAddress, "transactions"),
+        fetchAllIndexerPages(indexerUrl, userAddress, "token-transfers"),
+      ]);
 
-      const latestBlock =
-        await provider.getBlockNumber();
-
-      console.log(
-        "Latest block:",
-        latestBlock
+      const protocolAddresses = new Set(
+        protocolAddressFields
+          .map((field) => deployment[field])
+          .filter((address) => typeof address === "string" && ethers.isAddress(address))
+          .map((address) => address.toLowerCase())
       );
-
-      /*
-        Search only the last 5,000 blocks.
-        This avoids RPC limitations.
-      */
-
-      const startBlock =
-        Math.max(
-          0,
-          latestBlock - 5000
-        );
-
-      /* =================================================
-         GET TRANSACTIONS FROM WALLET
-      ================================================= */
-
-      /*
-        We cannot directly ask a normal Ethereum RPC
-        for "all transactions from this wallet".
-
-        Instead, we get BankX logs and safely display
-        transactions that interact with BankX.
-      */
-
-      let logs = [];
-
-      try {
-        logs =
-          await provider.getLogs({
-            address: contractAddress,
-            fromBlock: startBlock,
-            toBlock: latestBlock,
-          });
-      } catch (logError) {
-        console.error(
-          "getLogs error:",
-          logError
-        );
-
-        /*
-          Don't crash the entire page.
-        */
-
-        setError(
-          "Unable to read BankX blockchain logs. Try refreshing."
-        );
-
-        return;
-      }
-
-      console.log(
-        "BankX logs:",
-        logs
-      );
-
-      /* =================================================
-         UNIQUE TRANSACTIONS
-      ================================================= */
-
-      const uniqueHashes =
+      const tokenAddresses = new Set(
         [
-          ...new Set(
-            logs.map(
-              (log) =>
-                log.transactionHash
-            )
-          ),
-        ];
-
-      console.log(
-        "Transaction hashes:",
-        uniqueHashes
+          deployment.BankXToken,
+          deployment.usdc,
+          deployment.BankXSavingsVault,
+          deployment.BankXUsdcVault,
+        ]
+          .filter((address) => typeof address === "string" && ethers.isAddress(address))
+          .map((address) => address.toLowerCase())
       );
 
-      const result = [];
+      const transfersByHash = new Map();
+      const firstTransferByHash = new Map();
+      indexedTokenTransfers
+        .filter((transfer) => tokenAddresses.has(getAddress(transfer.token?.address_hash)))
+        .forEach((transfer) => {
+          const hash = transfer.transaction_hash?.toLowerCase();
+          if (!hash) return;
 
-      /* =================================================
-         LOAD TRANSACTION DETAILS
-      ================================================= */
-
-      for (
-        const hash of uniqueHashes
-      ) {
-        try {
-          const tx =
-            await provider.getTransaction(
-              hash
-            );
-
-          if (!tx) continue;
-
-          /*
-            Only show transactions where
-            the connected wallet participated.
-          */
-
-          const fromMatches =
-            tx.from?.toLowerCase() ===
-            userAddress.toLowerCase();
-
-          const toMatches =
-            tx.to?.toLowerCase() ===
-            contractAddress.toLowerCase();
-
-          if (
-            !fromMatches &&
-            !toMatches
-          ) {
-            continue;
+          if (!firstTransferByHash.has(hash)) {
+            firstTransferByHash.set(hash, transfer);
           }
+          const tokenAddress = getAddress(transfer.token?.address_hash);
+          const transferDecimals = Number(transfer.total?.decimals);
+          const decimals = Number.isInteger(transferDecimals) && transferDecimals >= 0
+            ? transferDecimals
+            : tokenAddress === deployment.usdc?.toLowerCase()
+              ? Number(deployment.usdcDecimals) || 6
+              : 18;
+          const amount = BigInt(transfer.total?.value || "0");
+          const transferFrom = getAddress(transfer.from);
+          const transferTo = getAddress(transfer.to);
+          const signedAmount =
+            transferFrom === userAddress.toLowerCase()
+              ? -amount
+              : transferTo === userAddress.toLowerCase()
+                ? amount
+                : 0n;
 
-          const receipt =
-            await provider.getTransactionReceipt(
-              hash
-            );
-
-          const block =
-            await provider.getBlock(
-              tx.blockNumber
-            );
-
-          let type =
-            "Contract Interaction";
-
-          let direction =
-            "neutral";
-
-          /*
-            Basic classification.
-          */
-
-          if (fromMatches) {
-            type = "BankX Transaction";
-            direction = "out";
+          if (!transfersByHash.has(hash)) {
+            transfersByHash.set(hash, new Map());
           }
+          const amountsByToken = transfersByHash.get(hash);
+          const current = amountsByToken.get(tokenAddress) || {
+            amount: 0n,
+            decimals,
+            symbol: transfer.token?.symbol ||
+              (tokenAddress === deployment.usdc?.toLowerCase()
+                ? "USDC"
+                : tokenAddress === deployment.BankXSavingsVault?.toLowerCase()
+                  ? "bxBANK"
+                  : tokenAddress === deployment.BankXUsdcVault?.toLowerCase()
+                    ? "bxUSDC"
+                    : "BANKX"),
+          };
+          current.amount += signedAmount;
+          amountsByToken.set(tokenAddress, current);
+        });
 
-          if (
-            toMatches &&
-            !fromMatches
-          ) {
-            type = "BankX Deposit";
-            direction = "in";
-          }
+      const transactionsByHash = new Map();
+      indexedTransactions.forEach((tx) => {
+        const from = getAddress(tx.from);
+        const to = getAddress(tx.to);
+        if (!protocolAddresses.has(from) && !protocolAddresses.has(to)) return;
+        if (tx.hash) transactionsByHash.set(tx.hash.toLowerCase(), tx);
+      });
 
-          result.push({
-            hash,
+      transfersByHash.forEach((_amounts, hash) => {
+        if (transactionsByHash.has(hash)) return;
+        const transfer = firstTransferByHash.get(hash);
+        if (!transfer) return;
+        transactionsByHash.set(hash, {
+          hash,
+          block_number: transfer.block_number,
+          timestamp: transfer.timestamp,
+          from: transfer.from,
+          to: transfer.to,
+          value: "0",
+          status: "ok",
+          result: "success",
+        });
+      });
 
-            type,
+      const result = [...transactionsByHash.values()].map((tx) => {
+        const hash = tx.hash.toLowerCase();
+        const from = getAddress(tx.from);
+        const to = getAddress(tx.to);
+        const tokenAmounts = transfersByHash.get(hash);
+        const tokenAmountLabels = tokenAmounts
+          ? [...tokenAmounts.values()]
+              .filter((token) => token.amount !== 0n)
+              .map((token) => {
+                const sign = token.amount > 0n ? "+" : "-";
+                return `${sign}${formatTokenAmount(
+                  token.amount < 0n ? -token.amount : token.amount,
+                  token.decimals
+                )} ${token.symbol}`;
+              })
+          : [];
 
-            amount:
-              ethers.formatEther(
-                tx.value
-              ),
-
-            from: tx.from,
-
-            to: tx.to,
-
-            blockNumber:
-              tx.blockNumber,
-
-            timestamp:
-              block?.timestamp || 0,
-
-            status:
-              receipt?.status === 1
-                ? "Confirmed"
-                : "Failed",
-
-            direction,
-          });
-        } catch (txError) {
-          console.warn(
-            "Could not read transaction:",
-            hash,
-            txError
-          );
+        let method =
+          tx.method ||
+          tx.decoded_input?.method_call?.split("(")[0] ||
+          "";
+        if (!method && to === deployment.legacyBankX?.toLowerCase() && tx.raw_input) {
+          method = bankXInterface.parseTransaction({ data: tx.raw_input })?.name || "";
         }
-      }
 
-      /* =================================================
-         SORT
-      ================================================= */
+        const parsedTimestamp = tx.timestamp ? Date.parse(tx.timestamp) : 0;
+        return {
+          hash,
+          type: method
+            ? method.replace(/([a-z])([A-Z])/g, "$1 $2")
+            : tokenAmountLabels.length
+              ? `${[...new Set([...tokenAmounts.values()].map((token) => token.symbol))].join("/")} transfer`
+              : "BankX Contract Interaction",
+          amount: tokenAmountLabels.length
+            ? tokenAmountLabels.join(", ")
+            : `${ethers.formatEther(BigInt(tx.value || "0"))} ETH`,
+          from,
+          to,
+          blockNumber: Number(tx.block_number),
+          timestamp: Number.isNaN(parsedTimestamp)
+            ? 0
+            : Math.floor(parsedTimestamp / 1000),
+          status:
+            tx.status === "ok" ||
+            tx.status === "success" ||
+            tx.result === "success"
+              ? "Confirmed"
+              : "Failed",
+          direction: from === userAddress.toLowerCase() ? "out" : "in",
+        };
+      });
 
-      result.sort(
-        (a, b) =>
-          b.blockNumber -
-          a.blockNumber
-      );
-
+      result.sort((a, b) => b.blockNumber - a.blockNumber);
       setTransactions(result);
     } catch (err) {
       console.error(
@@ -501,7 +506,7 @@ export default function Transactions() {
                 </h2>
 
                 <p className="mt-2 text-sm text-gray-400">
-                  BankX transactions from the Sepolia blockchain.
+                  Full indexed history of your BankX activity on {network || "the connected network"}.
                 </p>
 
               </div>
@@ -598,7 +603,7 @@ export default function Transactions() {
                     </p>
 
                     <p className="mt-1 text-xs text-gray-400">
-                      Loading BankX transactions
+                      Loading indexed BankX history
                     </p>
 
                   </div>
@@ -650,6 +655,7 @@ export default function Transactions() {
                           <TransactionRow
                             key={tx.hash}
                             tx={tx}
+                            explorerUrl={explorerUrl}
                           />
                         )
                       )}
@@ -683,7 +689,7 @@ export default function Transactions() {
                     <p className="mt-2 text-sm leading-6 text-gray-400">
 
                       {wallet
-                        ? "No BankX transactions were found in the last 5,000 blocks."
+                        ? `No BankX transactions were found for this wallet on ${network || "the connected network"}.`
                         : "Connect your wallet to view your transactions."}
 
                     </p>
@@ -735,6 +741,7 @@ function StatCard({
 
 function TransactionRow({
   tx,
+  explorerUrl,
 }) {
   const isIncoming =
     tx.direction === "in";
@@ -848,7 +855,7 @@ function TransactionRow({
       <td className="px-6 py-5">
 
         <a
-          href={`https://sepolia.etherscan.io/tx/${tx.hash}`}
+          href={`${explorerUrl}/tx/${tx.hash}`}
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 rounded-lg bg-gray-50 px-3 py-2 text-[10px] font-bold text-violet-600 hover:bg-violet-50"

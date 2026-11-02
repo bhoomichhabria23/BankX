@@ -16,6 +16,7 @@ import Governance from "./pages/Governance";
 import Staking from "./pages/Staking";
 import Security from "./pages/Security";
 import Settings from "./pages/Settings";
+import ChainlinkPriceFeed from "./pages/ChainlinkPriceFeed";
 import { getStartupPath } from "./config/preferences";
 
 export default function App() {
@@ -54,6 +55,11 @@ export default function App() {
         <Route
           path="/markets"
           element={<Markets />}
+        />
+
+        <Route
+          path="/chainlink-price-feed"
+          element={<ChainlinkPriceFeed />}
         />
 
         {/* VAULTS */}

@@ -6,6 +6,7 @@ export const STARTUP_PAGE_OPTIONS = [
   { label: "Savings", path: "/savings" },
   { label: "Borrow", path: "/loans" },
   { label: "Markets", path: "/markets" },
+  { label: "Chainlink Price Feed", path: "/chainlink-price-feed" },
   { label: "Vaults", path: "/vaults" },
   { label: "Governance", path: "/governance" },
   { label: "Staking", path: "/staking" },

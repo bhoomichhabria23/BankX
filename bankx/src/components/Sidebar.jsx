@@ -1,5 +1,6 @@
 import {
   BarChart3,
+  Activity,
   CircleDollarSign,
   Coins,
   CreditCard,
@@ -82,6 +83,11 @@ export default function Sidebar() {
       icon: BarChart3,
       label: "Markets",
       path: "/markets",
+    },
+    {
+      icon: Activity,
+      label: "Chainlink Price Feed",
+      path: "/chainlink-price-feed",
     },
     {
       icon: Gem,
